@@ -12,7 +12,7 @@ El desarrollo debe ser estrictamente guiado por especificaciones para garantizar
 ## 3. Gestión de la Ventana de Contexto y Memoria
 Para evitar la pérdida de foco o "lobotomía" del modelo por saturación de información, sigue estas reglas de eficiencia:
 - **Carga Perezosa (Lazy Loading):** No intentes procesar todo el repositorio. Identifica la habilidad necesaria en `/skills/` y carga solo ese contexto específico para la tarea actual.
-- **Uso de Estructuras Eficientes:** Prioriza el uso de **Arrays** para accesos rápidos y **Árboles Binarios** para representar jerarquías de dependencias o autocompletados.
+- **Uso de Estructuras Eficientes:** Prioriza el uso de **Hashmaps (dict)** para lookups O(1) por clave (ej. caché de tokens por ID) y **Árboles Binarios** para representar jerarquías de dependencias o autocompletados. Los arrays/listas son O(n) para búsqueda por valor y solo apropiados para acceso por índice numérico.
 - **Sistema Engram:** Al finalizar cada sesión, actualiza obligatoriamente `/engram/session_learning.md` con las decisiones técnicas tomadas para garantizar la persistencia de la memoria a largo plazo.
 
 ## 4. Aislamiento Atómico (Git Worktrees)
