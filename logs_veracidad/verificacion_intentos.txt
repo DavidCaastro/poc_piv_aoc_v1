@@ -1,0 +1,101 @@
+# VERIFICACION DE REQUERIMIENTOS — PIV/OAC Mini Platform API
+# Generado por: AuditAgent
+# Sesion: 2026-03-12 — Rama: staging
+# ================================================================
+
+RF-01 (POST /auth/login — access_token + refresh_token):
+  Estado: CUMPLIDO
+  Evidencia: src/transport/auth_router.py:20 — endpoint POST /auth/login
+  Evidencia: src/domain/auth_service.py:79 — create_token_pair() genera access + refresh
+  Evidencia: tests/test_auth.py:12 — test_login_success verifica ambos tokens
+  Expiracion: access=1h, refresh=24h
+
+RF-02 (POST /auth/refresh):
+  Estado: CUMPLIDO
+  Evidencia: src/transport/auth_router.py:41 — endpoint POST /auth/refresh
+  Evidencia: src/domain/auth_service.py:138 — refresh_tokens() valida y re-emite
+  Evidencia: tests/test_auth.py:51 — test_refresh_success
+  Old refresh token revocado tras uso: SI (auth_service.py:160)
+
+RF-03 (POST /auth/logout — revocacion):
+  Estado: CUMPLIDO
+  Evidencia: src/transport/auth_router.py:56 — endpoint POST /auth/logout
+  Evidencia: src/domain/auth_service.py:119 — revoke_token() usa dict O(1) por jti
+  Evidencia: src/data/store.py:38 — revoked_tokens: dict[str, float]
+  Evidencia: tests/test_auth.py:85 — test_revoked_token_cannot_access
+  Estructura: dict (hashmap) con O(1) — CORRECTO
+
+RF-04 (Seguridad de Passwords):
+  Estado: CUMPLIDO
+  Evidencia: src/data/seed.py:19 — bcrypt.gensalt(rounds=12) — cost factor 12
+  Evidencia: src/domain/auth_service.py:51 — verify_password() usa bcrypt.checkpw (timing-safe)
+  Evidencia: src/domain/auth_service.py:71 — login() ejecuta verify_password contra _DUMMY_HASH si usuario no existe
+  Evidencia: src/transport/auth_router.py:31 — mensaje generico "Credenciales invalidas."
+  Evidencia: tests/test_auth.py:33 — test_login_error_message_is_generic
+  Secretos en codigo: NINGUNO (grep -rn SECRET_KEY src/ = 0 resultados literales)
+
+RF-05 (RBAC — 3 roles con jerarquia):
+  Estado: CUMPLIDO
+  Evidencia: src/schemas/roles.py:8 — Role(ADMIN, EDITOR, VIEWER)
+  Evidencia: src/schemas/roles.py:16 — ROLE_HIERARCHY con valores 3 > 2 > 1
+  Evidencia: src/domain/rbac_engine.py:28 — _PERMISSION_MATRIX explicita
+  Evidencia: tests/test_rbac.py — 12 tests de permisos por rol
+
+RF-06 (Recursos Protegidos — 5 endpoints):
+  Estado: CUMPLIDO
+  Evidencia: src/transport/resources_router.py — GET/POST/PUT/DELETE /resources
+  Evidencia: src/transport/admin_router.py — GET /admin/audit-log
+  Evidencia: src/domain/rbac_engine.py:28-37 — matriz cubre los 5 endpoints
+  Evidencia: tests/test_resources.py — 8 tests CRUD
+  Permisos:
+    GET /resources: VIEWER+ (CUMPLIDO)
+    POST /resources: EDITOR+ (CUMPLIDO)
+    PUT /resources/{id}: EDITOR+ (CUMPLIDO)
+    DELETE /resources/{id}: ADMIN (CUMPLIDO)
+    GET /admin/audit-log: ADMIN (CUMPLIDO)
+
+RF-07 (Rate Limiting):
+  Estado: CUMPLIDO
+  Evidencia: src/domain/rate_limiter.py:19-23 — RATE_LIMITS por rol
+  Evidencia: src/domain/rate_limiter.py:29 — sliding window con dict[str, list[float]]
+  Evidencia: tests/test_rate_limit.py:12 — test_viewer_rate_limit_exceeded (>10 -> 429)
+  Limites: VIEWER=10, EDITOR=30, ADMIN=100 req/min
+
+RF-08 (Audit Trail):
+  Estado: CUMPLIDO
+  Evidencia: src/transport/dependencies.py:87-94 — audit_log.append() en cada request autenticado
+  Evidencia: src/data/store.py:47 — audit_log: list[dict]
+  Evidencia: src/transport/admin_router.py:14 — GET /admin/audit-log (ADMIN only)
+  Evidencia: tests/test_resources.py:78 — test_audit_log_contains_required_fields
+  Campos: user_id, role, endpoint, method, timestamp, status_code
+
+RF-09 (Errores genericos):
+  Estado: CUMPLIDO
+  Evidencia: src/transport/auth_router.py:31 — "Credenciales invalidas." (401)
+  Evidencia: src/transport/dependencies.py:65 — "Permisos insuficientes." (403)
+  Evidencia: src/transport/dependencies.py:79 — "Limite de solicitudes excedido." (429)
+  Evidencia: tests/test_auth.py:44 — message no revela campo fallido
+
+RF-10 (Tests >= 80% cobertura + escenarios obligatorios):
+  Estado: CUMPLIDO
+  Cobertura: 96% (303 statements, 11 missed)
+  Tests totales: 35 passed, 0 failed
+
+  Escenarios obligatorios:
+  [x] Privilege escalation: VIEWER -> ADMIN -> 403
+      Evidencia: tests/test_rbac.py:14 — test_viewer_cannot_access_admin_endpoint
+  [x] Token revocado -> 401
+      Evidencia: tests/test_auth.py:85 — test_revoked_token_cannot_access
+  [x] Rate limit: VIEWER > 10 req/min -> 429
+      Evidencia: tests/test_rate_limit.py:12 — test_viewer_rate_limit_exceeded
+  [x] Refresh con token invalido -> 401
+      Evidencia: tests/test_auth.py:57 — test_refresh_with_invalid_token
+  [x] EDITOR DELETE -> 403
+      Evidencia: tests/test_rbac.py:39 — test_editor_cannot_delete_resources
+
+# ================================================================
+VEREDICTO FINAL: APROBADO
+Todos los RF (RF-01 a RF-10) verificados y cumplidos.
+0 secretos hardcodeados detectados.
+96% cobertura de tests (> 80% requerido).
+35 tests pasados (5/5 escenarios obligatorios RF-10 incluidos).
