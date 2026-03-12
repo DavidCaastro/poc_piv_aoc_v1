@@ -1,0 +1,142 @@
+# LOG DE ACCIONES REALIZADAS — PIV/OAC Mini Platform API
+# Generado por: AuditAgent
+# Sesion: 2026-03-12 — Rama: staging
+# ================================================================
+
+[2026-03-12] AGENTE: MasterOrchestrator
+[2026-03-12] ACCION: Setup inicial — creacion rama staging desde main
+[2026-03-12] HERRAMIENTA: git checkout -b staging
+[2026-03-12] ARCHIVO: (rama)
+[2026-03-12] RESULTADO: OK
+
+[2026-03-12] AGENTE: MasterOrchestrator
+[2026-03-12] ACCION: Creacion entorno de control (SecurityAgent + AuditAgent + CoherenceAgent)
+[2026-03-12] HERRAMIENTA: mkdir -p gates/
+[2026-03-12] RESULTADO: OK
+
+# --- FASE 1: T-01 core-schemas ---
+
+[2026-03-12] AGENTE: DomainOrchestrator-T01
+[2026-03-12] ACCION: Crear rama feature/core-schemas desde staging
+[2026-03-12] HERRAMIENTA: git checkout -b feature/core-schemas
+[2026-03-12] RESULTADO: OK
+
+[2026-03-12] AGENTE: DomainOrchestrator-T01
+[2026-03-12] ACCION: Escribir plan en gates/core-schemas/plan.md
+[2026-03-12] HERRAMIENTA: Write
+[2026-03-12] RESULTADO: OK
+
+[2026-03-12] GATE: Plan Review — Security + Audit + Coherence
+[2026-03-12] TAREA: feature/core-schemas
+[2026-03-12] PLAN_VERSION: 1
+[2026-03-12] VEREDICTO: APROBADO (3/3)
+
+[2026-03-12] AGENTE: Experto-1 (T01)
+[2026-03-12] ACCION: Implementar src/schemas/ (roles, tokens, users, resources, errors)
+[2026-03-12] HERRAMIENTA: Write (6 archivos)
+[2026-03-12] RESULTADO: OK
+
+[2026-03-12] AGENTE: Experto-2 (T01)
+[2026-03-12] ACCION: Implementar src/data/ (store.py, seed.py)
+[2026-03-12] HERRAMIENTA: Write (3 archivos)
+[2026-03-12] RESULTADO: OK
+
+[2026-03-12] GATE: Gate 2 — Security + Audit
+[2026-03-12] TAREA: feature/core-schemas -> staging
+[2026-03-12] VEREDICTO: APROBADO
+[2026-03-12] ACCION: Merge feature/core-schemas -> staging
+[2026-03-12] RESULTADO: OK
+
+# --- FASE 1: T-07 docs ---
+
+[2026-03-12] AGENTE: DomainOrchestrator-T07
+[2026-03-12] ACCION: Crear docs/api-reference.md
+[2026-03-12] HERRAMIENTA: Write
+[2026-03-12] RESULTADO: OK
+[2026-03-12] ACCION: Merge feature/docs -> staging
+[2026-03-12] RESULTADO: OK
+
+# --- FASE 2: T-02 auth-service ---
+
+[2026-03-12] AGENTE: DomainOrchestrator-T02
+[2026-03-12] ACCION: Implementar src/domain/auth_service.py
+[2026-03-12] HERRAMIENTA: Write
+[2026-03-12] RESULTADO: OK
+
+[2026-03-12] GATE: Plan Review — Security + Audit + Coherence
+[2026-03-12] TAREA: feature/auth-service
+[2026-03-12] PLAN_VERSION: 1
+[2026-03-12] VEREDICTO: APROBADO (3/3)
+[2026-03-12] NOTA: CoherenceAgent verifico schema JWT identico al acordado para T-03
+
+[2026-03-12] GATE: Gate 2 — Merge feature/auth-service -> staging
+[2026-03-12] VEREDICTO: APROBADO
+
+# --- FASE 2: T-03 rbac-engine ---
+
+[2026-03-12] AGENTE: DomainOrchestrator-T03
+[2026-03-12] ACCION: Implementar src/domain/rbac_engine.py
+[2026-03-12] HERRAMIENTA: Write
+[2026-03-12] RESULTADO: OK
+
+[2026-03-12] GATE: Plan Review — Security + Audit + Coherence
+[2026-03-12] TAREA: feature/rbac-engine
+[2026-03-12] PLAN_VERSION: 1
+[2026-03-12] VEREDICTO: APROBADO (3/3)
+[2026-03-12] NOTA: CoherenceAgent verifico coherencia de schema JWT con T-02
+
+[2026-03-12] GATE: Gate 2 — Merge feature/rbac-engine -> staging
+[2026-03-12] VEREDICTO: APROBADO
+
+# --- FASE 3: T-04 rate-limiter ---
+
+[2026-03-12] AGENTE: DomainOrchestrator-T04
+[2026-03-12] ACCION: Implementar src/domain/rate_limiter.py
+[2026-03-12] HERRAMIENTA: Write
+[2026-03-12] RESULTADO: OK
+
+[2026-03-12] GATE: Plan + Gate 2 — APROBADO
+[2026-03-12] ACCION: Merge feature/rate-limiter -> staging
+[2026-03-12] RESULTADO: OK
+
+# --- FASE 4: T-05 transport-layer ---
+
+[2026-03-12] AGENTE: DomainOrchestrator-T05
+[2026-03-12] ACCION: Implementar transport layer (dependencies, routers, main.py)
+[2026-03-12] HERRAMIENTA: Write (6 archivos)
+[2026-03-12] RESULTADO: OK
+
+[2026-03-12] GATE: Plan Review — Security + Audit + Coherence
+[2026-03-12] TAREA: feature/transport-layer
+[2026-03-12] PLAN_VERSION: 1
+[2026-03-12] VEREDICTO: APROBADO (3/3)
+[2026-03-12] NOTA: SecurityAgent verifico orden middleware: auth -> rbac -> rate_limit
+
+[2026-03-12] GATE: Gate 2 — Merge feature/transport-layer -> staging
+[2026-03-12] VEREDICTO: APROBADO
+
+# --- FASE 5: T-06 tests ---
+
+[2026-03-12] AGENTE: DomainOrchestrator-T06
+[2026-03-12] ACCION: Implementar suite de tests (35 tests)
+[2026-03-12] HERRAMIENTA: Write (6 archivos)
+[2026-03-12] RESULTADO: OK
+
+[2026-03-12] AGENTE: DomainOrchestrator-T06
+[2026-03-12] ACCION: Ejecutar pytest
+[2026-03-12] HERRAMIENTA: python -m pytest tests/ -v --cov=src
+[2026-03-12] RESULTADO: 35 passed, 96% coverage
+
+[2026-03-12] GATE: Gate 2 — Merge feature/tests -> staging
+[2026-03-12] VEREDICTO: APROBADO
+
+# --- GATE 3: Final Review ---
+
+[2026-03-12] AGENTE: SecurityAgent
+[2026-03-12] ACCION: Revision integral de staging
+[2026-03-12] HERRAMIENTA: grep -rn SECRET_KEY src/
+[2026-03-12] RESULTADO: 0 secretos hardcodeados encontrados
+
+[2026-03-12] AGENTE: AuditAgent
+[2026-03-12] ACCION: Generacion de logs de veracidad
+[2026-03-12] RESULTADO: 3 logs generados en /logs_veracidad/
