@@ -1,0 +1,39 @@
+# ============================================================
+# ARCHIVOS DEL MARCO PIV/OAC (rama agent-configs)
+# Estos archivos son configuración del agente y NO deben
+# existir ni commitearse en la rama main.
+# ============================================================
+CLAUDE.md
+agent.md
+project_spec.md
+security_vault.md
+setup_piv.ps1
+skills/
+registry/
+engram/
+logs_veracidad/
+worktrees/
+
+# Variables de entorno y secretos
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
