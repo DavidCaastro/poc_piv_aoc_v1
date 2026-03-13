@@ -1,4 +1,4 @@
-# PIV/OAC — Marco de Configuración Operativa v3.1
+# PIV/OAC — Marco de Configuración Operativa v3.2
 
 > **Rama:** `agent-configs` | **Tipo:** Directive
 > Esta rama contiene exclusivamente la configuración del sistema de agentes. No contiene código de aplicación.
@@ -16,6 +16,7 @@
 | Un solo agente satura su ventana de contexto con todo el repo | Cada agente recibe solo el contexto mínimo necesario para su tarea (lazy loading) |
 | La seguridad y auditoría son pasos finales opcionales | SecurityAgent, AuditAgent y CoherenceAgent corren desde el inicio con capacidad de veto pre-código |
 | Las decisiones técnicas se pierden entre sesiones | El sistema Engram persiste las decisiones para que el agente no empiece desde cero |
+| Los agentes "paralelos" se ejecutan secuencialmente en la práctica | `run_in_background=True` en múltiples Agent calls del mismo mensaje activa paralelismo real |
 
 ---
 
@@ -201,7 +202,7 @@ agent-configs/
 ├── CLAUDE.md                         ← Instrucciones operativas cargadas automáticamente
 │                                        por Claude Code en cada sesión (entrypoint)
 │
-├── agent.md                          ← Marco operativo completo PIV/OAC v3.1
+├── agent.md                          ← Marco operativo completo PIV/OAC v3.2
 │
 ├── project_spec.md                   ← Fuente de verdad activa (RF + DAG)
 │                                        Actualmente: Mini Platform API v1.0
@@ -244,10 +245,10 @@ agent-configs/
    └── Construye DAG de dependencias
    └── Presenta DAG al usuario → espera confirmación
          │
-3. Crear entorno de control (tras confirmación)
-   ├── SecurityAgent (Opus)    — persistente
-   ├── AuditAgent (Sonnet)     — persistente
-   └── CoherenceAgent (Sonnet) — persistente
+3. Crear entorno de control en PARALELO REAL (tras confirmación)
+   ├── SecurityAgent (Opus)    — run_in_background=True ┐
+   ├── AuditAgent (Sonnet)     — run_in_background=True ├── mismo mensaje → paralelo real
+   └── CoherenceAgent (Sonnet) — run_in_background=True ┘
          │
 4. Por cada tarea en orden del DAG:
    Domain Orchestrator → diseña plan → somete al gate
