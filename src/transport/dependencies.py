@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from jose import JWTError
+import jwt
 
 from src.data import store
 from src.domain import auth_service
@@ -42,7 +42,7 @@ async def get_current_user(
 
     try:
         payload = auth_service.verify_token(credentials.credentials)
-    except JWTError:
+    except jwt.PyJWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Credenciales invalidas.",

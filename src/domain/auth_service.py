@@ -17,7 +17,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
-from jose import JWTError, jwt
+import jwt
 
 from src.data import store
 from src.schemas.roles import Role
@@ -121,16 +121,16 @@ def verify_token(token: str) -> TokenPayload:
     """Decode and validate a JWT token.
 
     Raises:
-        JWTError: If the token is invalid, expired, or has been revoked.
+        jwt.PyJWTError: If the token is invalid, expired, or has been revoked.
     """
     try:
         payload = jwt.decode(token, _SECRET_KEY, algorithms=[_ALGORITHM])
-    except JWTError:
+    except jwt.PyJWTError:
         raise
 
     jti = payload.get("jti")
     if jti and is_token_revoked(jti):
-        raise JWTError("Token has been revoked")
+        raise jwt.InvalidTokenError("Token has been revoked")
 
     return TokenPayload(
         sub=payload["sub"],
@@ -182,7 +182,7 @@ def refresh_tokens(refresh_token_str: str) -> TokenPair | None:
     """
     try:
         payload = verify_token(refresh_token_str)
-    except JWTError:
+    except jwt.PyJWTError:
         return None
 
     if payload.type != "refresh":
