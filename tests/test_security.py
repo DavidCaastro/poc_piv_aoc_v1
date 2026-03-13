@@ -1,8 +1,12 @@
-"""Tests for security headers and input validation boundaries.
+"""Tests for security headers, input validation, and exception handling.
 
 Covers FIX VULN-004 (security headers), FIX VULN-018 (field length limits),
-and FIX VULN-020 (password length limit).
+FIX VULN-020 (password length limit), and global exception handler.
 """
+
+import asyncio
+import json
+from unittest.mock import MagicMock
 
 from tests.conftest import auth_header
 
@@ -17,6 +21,7 @@ class TestSecurityHeaders:
         assert r.headers.get("x-frame-options") == "DENY"
         assert r.headers.get("referrer-policy") == "strict-origin-when-cross-origin"
         assert r.headers.get("x-xss-protection") == "0"
+        assert "max-age=31536000" in r.headers.get("strict-transport-security", "")
 
     def test_security_headers_on_authenticated_endpoint(self, client, admin_token):
         """Security headers are present on authenticated API responses."""
@@ -25,6 +30,7 @@ class TestSecurityHeaders:
         assert r.headers.get("x-frame-options") == "DENY"
         assert r.headers.get("referrer-policy") == "strict-origin-when-cross-origin"
         assert r.headers.get("x-xss-protection") == "0"
+        assert "max-age=31536000" in r.headers.get("strict-transport-security", "")
 
     def test_security_headers_on_error_response(self, client):
         """Security headers are present on 401 error responses."""
@@ -32,6 +38,7 @@ class TestSecurityHeaders:
         assert r.status_code == 401
         assert r.headers.get("x-content-type-options") == "nosniff"
         assert r.headers.get("x-frame-options") == "DENY"
+        assert "max-age=31536000" in r.headers.get("strict-transport-security", "")
 
 
 class TestInputValidation:
@@ -115,3 +122,25 @@ class TestInputValidation:
             json={"email": "admin@test.com", "password": "Admin123!", "extra": "injected"},
         )
         assert r.status_code == 422
+
+
+class TestExceptionHandler:
+    """Global exception handler returns 500 without leaking internal details."""
+
+    def test_exception_handler_returns_generic_500(self):
+        """Handler returns 500 JSON with generic message — no internal details leaked."""
+        from src.main import unhandled_exception_handler
+
+        mock_request = MagicMock()
+        mock_request.method = "GET"
+        mock_request.url.path = "/test"
+
+        response = asyncio.run(
+            unhandled_exception_handler(mock_request, RuntimeError("DB connection lost"))
+        )
+
+        assert response.status_code == 500
+        body = json.loads(response.body)
+        assert body["detail"] == "Error interno del servidor."
+        assert "DB connection lost" not in str(body)
+        assert "Traceback" not in str(body)

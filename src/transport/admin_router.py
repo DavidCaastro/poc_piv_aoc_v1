@@ -18,4 +18,4 @@ async def get_audit_log(
     current_user: TokenPayload = Depends(require_auth),
 ):
     """GET /admin/audit-log — View audit trail (ADMIN only, RF-08)."""
-    return store.audit_log
+    return list(store.audit_log)

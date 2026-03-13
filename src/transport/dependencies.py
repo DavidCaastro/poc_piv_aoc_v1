@@ -105,18 +105,16 @@ async def check_rate(
             detail="Limite de solicitudes excedido.",
         )
 
-    # Log to audit trail (RF-08)
-    # KNOWN LIMITATION: status_code is recorded as 200 at dependency resolution time.
-    # Errors raised downstream (404, 500) are not captured here.
-    # For complete audit logging, implement a response middleware.
-    store.audit_log.append({
+    # Store pending audit entry in request.state — audit_log_middleware in main.py
+    # will complete it with the real status_code after the handler executes.
+    # This captures 200, 404, 422, 500 accurately instead of assuming 200.
+    request.state.audit_entry = {
         "user_id": current_user.sub,
         "role": current_user.role,
         "endpoint": request.url.path,
         "method": request.method,
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "status_code": 200,
-    })
+    }
 
     return current_user
 

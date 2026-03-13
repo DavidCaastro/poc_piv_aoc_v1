@@ -9,13 +9,14 @@ DESIGN DECISIONS:
 - rate_windows: dict[str, list[float]] for sliding window rate limiting per user (RF-07).
 - login_windows: dict[str, list[float]] for IP-based login rate limiting (FIX VULN-007).
   Kept in store (not module global in rate_limiter) so reset_store() clears it in tests.
-- audit_log: list[dict] for immutable append-only audit trail (RF-08).
+- audit_log: deque[dict](maxlen=10_000) circular buffer — prevents unbounded OOM growth (RF-08).
 - users: dict[str, UserInDB] indexed by email for O(1) lookup.
 - resources: list[dict] for simple in-memory CRUD (RF-06).
 """
 
 from __future__ import annotations
 
+from collections import deque
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -50,7 +51,9 @@ login_windows: dict[str, list[float]] = {}
 # Audit trail: append-only log of authenticated requests (RF-08)
 # Each entry: {"user_id": str, "role": str, "endpoint": str,
 #              "method": str, "timestamp": str, "status_code": int}
-audit_log: list[dict] = []
+# STRUCTURE: deque(maxlen=10_000) — circular buffer capping memory growth.
+# Oldest entries are evicted automatically when the limit is reached.
+audit_log: deque[dict] = deque(maxlen=10_000)
 
 
 def get_next_resource_id() -> int:
