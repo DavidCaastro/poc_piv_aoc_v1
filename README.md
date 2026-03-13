@@ -1,6 +1,6 @@
 # Mini Platform API — Auth + RBAC + Rate Limiting + Audit Trail
 
-> **Rama:** `main` | Construido bajo el marco **PIV/OAC v3.1**
+> **Rama:** `main` | Construido bajo el marco **PIV/OAC v3.2**
 > La configuración del sistema de agentes que construyó este proyecto vive en la rama `agent-configs`.
 
 ---
@@ -237,4 +237,4 @@ engram/             ← Decisiones técnicas persistidas entre sesiones
 
 ## Rama `agent-configs`
 
-Contiene el marco operativo PIV/OAC v3.1 que orquestó este proyecto: instrucciones para Claude Code (`CLAUDE.md`), definición de agentes, skills, registry, protocolos de gates y memoria persistente (engram).
+Contiene el marco operativo PIV/OAC v3.2 que orquestó este proyecto: instrucciones para Claude Code (`CLAUDE.md`), definición de agentes, skills, registry, protocolos de gates y memoria persistente (engram).
