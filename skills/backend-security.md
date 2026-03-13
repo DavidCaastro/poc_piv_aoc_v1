@@ -108,7 +108,11 @@ router = APIRouter()
 
 class LoginRequest(BaseModel):
     email: EmailStr
-    password: str
+    # CRÍTICO: bcrypt>=4.1 lanza ValueError (→ HTTP 500) para passwords >72 bytes.
+    # max_length DEBE ser ≤ 72. No usar 128 aunque el objetivo sea limitar payloads.
+    password: str = Field(..., min_length=1, max_length=72)
+
+    model_config = {"extra": "forbid"}
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -363,4 +367,5 @@ pip audit --fix                  # Modo interactivo para actualizar paquetes vul
 - [ ] Security headers configurados
 - [ ] CORS con orígenes explícitos (nunca `*` con credenciales)
 - [ ] Purga de tokens revocados expirados implementada
+- [ ] **[bcrypt]** `max_length` en campo `password` es ≤ 72 (bcrypt>=4.1 lanza ValueError para >72 bytes → HTTP 500)
 - [ ] Intentos fallidos de autenticación registrados en audit log
