@@ -172,6 +172,25 @@ Destrucción forzada  →  2 rechazos consecutivos del gate → Master notifica 
 - Ningún agente recibe el contexto completo de otro, solo el resultado relevante para su tarea
 - El CoherenceAgent recibe **diffs**, no código completo
 
+### Patrón de lanzamiento paralelo real
+Siempre que el DAG indique tareas/agentes independientes, lanzarlos en el **mismo mensaje** con `run_in_background=True`:
+
+```python
+# CORRECTO — paralelo real (mismo mensaje)
+Agent(agente_A, run_in_background=True, prompt="...")
+Agent(agente_B, run_in_background=True, prompt="...")
+# Esperar notificaciones de completado antes de continuar
+
+# INCORRECTO — secuencial disfrazado de paralelo
+Agent(agente_A, prompt="...")   # bloquea hasta completar
+Agent(agente_B, prompt="...")   # luego este
+```
+
+**Cuándo NO usar `run_in_background=True`:**
+- Cuando el output del agente A es el input directo del agente B
+- Cuando el agente necesita presentar una decisión al usuario antes de continuar (ej. DAG inicial)
+- Gate 3 (staging → main): siempre bloquea para esperar confirmación humana
+
 ---
 
 ## Protocolo de Escalado

@@ -157,7 +157,7 @@ Esto permite reconstruir el historial de rechazos para aplicar correctamente la 
 
 # GATE COMBINADO — Flujo de Aprobación
 
-El Security + Audit actúan en **dos momentos distintos**:
+El Security + Audit actúan en **dos momentos distintos**. En ambos se lanzan en **PARALELO REAL** usando `run_in_background=True` en el mismo mensaje:
 
 ## Gate 2: Plan → Worktrees (pre-código, por tarea)
 
@@ -168,7 +168,8 @@ Plan listo del Domain Orchestrator
      ▼           ▼
  Security      Audit
   Gate 2       Gate 2
- (paralelo)   (paralelo)
+ (run_in_      (run_in_
+ background)  background)   ← lanzados en el mismo mensaje, paralelo real
      │           │
      └─────┬─────┘
            │

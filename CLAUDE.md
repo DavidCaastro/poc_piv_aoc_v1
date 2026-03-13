@@ -55,31 +55,39 @@ FASE 1: MASTER ORCHESTRATOR (Opus)
   └── Presentar grafo al usuario → esperar confirmación
 
 FASE 2: CREAR ENTORNO DE CONTROL (antes que cualquier experto)
-  ├── SecurityAgent (Opus)    — gate de seguridad, veto sobre planes y código
-  ├── AuditAgent (Sonnet)     — trazabilidad, logs, engram
-  ├── CoherenceAgent (Sonnet) — consistencia entre expertos paralelos
-  └── [+ superagentes adicionales que el Master estime necesarios]
+  ├── Lanzar los tres superagentes en PARALELO REAL (run_in_background=True):
+  │     Agent(SecurityAgent, model=opus,  run_in_background=True)
+  │     Agent(AuditAgent,    model=sonnet, run_in_background=True)
+  │     Agent(CoherenceAgent, model=sonnet, run_in_background=True)
+  │     [+ superagentes adicionales que el Master estime necesarios, también en paralelo]
+  └── Esperar notificaciones de completado de los tres antes de continuar a FASE 3
 
 FASE 3: CREAR AGENTES DE EJECUCIÓN
-  └── Domain Orchestrators (uno por dominio del grafo)
+  └── Domain Orchestrators — uno por dominio del grafo
+      Dominios sin dependencias entre sí → lanzar en PARALELO REAL (run_in_background=True)
+      Dominios con dependencias → lanzar en secuencia según el DAG
 
 FASE 4: POR CADA TAREA (en el orden del grafo) — ejecutado por Domain Orchestrator
   ├── Carga skill relevante de /skills/
   ├── Diseña plan detallado por capas
-  ├── [BLOQUEANTE] Somete plan al gate del entorno de control:
-  │     Security + Audit + Coherence revisan en PARALELO
-  │     Los tres deben aprobar → si no: revisar plan → repetir gate
+  ├── [BLOQUEANTE] Somete plan al gate del entorno de control en PARALELO REAL:
+  │     Agent(SecurityAgent.review_plan, run_in_background=True)
+  │     Agent(AuditAgent.review_plan,    run_in_background=True)
+  │     Agent(CoherenceAgent.review_plan, run_in_background=True)
+  │     Esperar los tres → todos deben aprobar → si no: revisar plan → repetir gate
   │     Mientras el gate no aprueba: NINGÚN worktree existe, NINGÚN experto existe.
   │     Si Domain Orchestrator no puede producir plan válido → escalar al Master → notificar usuario.
   └── [SOLO TRAS APROBACIÓN EXPLÍCITA DEL GATE] Domain Orchestrator ejecuta:
         git worktree add ./worktrees/<tarea> -b feature/<tarea>
-        Por cada experto asignado:
+        Por cada experto asignado — lanzar en PARALELO REAL (run_in_background=True):
           git worktree add ./worktrees/<tarea>/<experto> -b feature/<tarea>/<experto>
-        Crea Specialist Agents y los asigna a sus worktrees
+          Agent(SpecialistAgent, worktree=./worktrees/<tarea>/<experto>, run_in_background=True)
+        Esperar notificaciones de completado antes de activar Gate 1
 
 FASE 5: EJECUCIÓN PARALELA DE EXPERTOS
-  ├── Cada experto trabaja en su subrama con contexto mínimo de su tarea
+  ├── Cada experto trabaja en su subrama con contexto mínimo — PARALELO REAL vía run_in_background=True
   ├── CoherenceAgent monitoriza diffs entre subramas activas continuamente
+  │     Agent(CoherenceAgent.monitor_diff, run_in_background=True) por cada par de expertos activos
   └── Tareas SECUENCIALES esperan a que sus dependencias completen y pasen gate
 
 FASE 6: MERGE EN DOS NIVELES — ejecutado por Domain Orchestrator

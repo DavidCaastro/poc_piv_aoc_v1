@@ -73,9 +73,16 @@ El Master determina qué superagentes son necesarios según el objetivo:
 ### Paso 4: Secuencia de creación (orden estricto)
 ```
 1. Presentar grafo de dependencias al usuario → esperar confirmación
-2. Tras confirmación: crear entorno de control completo (superagentes)
+2. Tras confirmación: crear entorno de control completo en PARALELO REAL:
+     Agent(SecurityAgent,  model=opus,   run_in_background=True)
+     Agent(AuditAgent,     model=sonnet, run_in_background=True)
+     Agent(CoherenceAgent, model=sonnet, run_in_background=True)
+     ← enviar los tres en el mismo mensaje → esperar los tres antes de continuar
 3. Crear rama staging (si no existe): git checkout -b staging main
-4. Crear Domain Orchestrators (uno por dominio identificado en el grafo)
+4. Crear Domain Orchestrators para dominios sin dependencias en PARALELO REAL:
+     Agent(DomainOrchestrator_A, run_in_background=True)
+     Agent(DomainOrchestrator_B, run_in_background=True)  ← si A y B son independientes en el DAG
+     Los que tienen dependencias se crean en secuencia cuando sus dependencias completan.
 5. Domain Orchestrators crean ramas de tarea desde staging, worktrees y expertos
 
 Jerarquía de ramas:
@@ -162,11 +169,12 @@ El Master supervisa existencia y estado de ramas y worktrees, nunca su contenido
 ## Invocación
 
 ```python
+# Paso 1: Lanzar Master Orchestrator (bloquea hasta que presenta el DAG al usuario)
 Agent(
     subagent_type="general-purpose",
     model="opus",
     prompt="""
-    Eres el Master Orchestrator del marco PIV/OAC v3.0.
+    Eres el Master Orchestrator del marco PIV/OAC v3.1.
     Objetivo recibido: [OBJETIVO DEL USUARIO]
 
     Ejecuta el protocolo de registry/orchestrator.md:
@@ -174,12 +182,29 @@ Agent(
     2. Construye el grafo de dependencias (DAG) de tareas
     3. Determina entorno de control necesario
     4. Presenta grafo + equipo al usuario para confirmación
-    5. Tras confirmación: crea entorno de control, luego Domain Orchestrators
+    5. Tras confirmación: lanza entorno de control en PARALELO REAL:
+         Agent(SecurityAgent,  model=opus,   run_in_background=True)
+         Agent(AuditAgent,     model=sonnet, run_in_background=True)
+         Agent(CoherenceAgent, model=sonnet, run_in_background=True)
+       Esperar los tres → luego lanzar Domain Orchestrators (en paralelo si el DAG lo permite)
 
     Restricciones absolutas:
     - No escribas código
     - No leas archivos de implementación
     - No accedas a security_vault.md
+    - Usa run_in_background=True para todos los agentes paralelos del DAG
     """,
 )
+
+# Patrón de gate paralelo — usar en cada revisión de plan
+# Security + Audit + Coherence en el mismo mensaje → llegan sus notificaciones → continuar
+Agent(SecurityAgent.review,  run_in_background=True, prompt="Revisar plan: [PLAN]")
+Agent(AuditAgent.review,     run_in_background=True, prompt="Revisar plan: [PLAN]")
+Agent(CoherenceAgent.review, run_in_background=True, prompt="Revisar plan: [PLAN]")
+# ← esperar los tres antes de autorizar worktrees
+
+# Patrón de expertos paralelos — usar en FASE 5
+Agent(SpecialistAgent_1, run_in_background=True, isolation="worktree", prompt="[TAREA_1]")
+Agent(SpecialistAgent_2, run_in_background=True, isolation="worktree", prompt="[TAREA_2]")
+# ← esperar notificaciones → activar Gate 1 (CoherenceAgent)
 ```
