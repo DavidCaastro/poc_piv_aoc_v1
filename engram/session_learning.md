@@ -193,3 +193,37 @@ El SecurityAgent DEBE incluir `requirements.txt` y `requirements-test.txt` en el
 7. **bcrypt>=4.1 no silencia passwords >72 bytes** — lanza `ValueError` causando HTTP 500. `max_length` en el schema debe ser ≤ 72.
 
 8. **`new_test_file` vs. `existing_test_file`:** Crear `test_security.py` separado para tests de headers y validación de inputs. No sobre-cargar `test_auth.py` con concerns de transporte.
+
+---
+
+## Sesión 2026-03-13 — Implementación RF-11 a RF-17 (v2.0)
+
+**Tarea:** Activar el proceso PIV/OAC completo con el informe de auditoría como fuente de verdad. Implementar los 7 RF nuevos derivados de la auditoría.
+
+**Requerimientos implementados:**
+
+| RF | Descripción | Archivos principales |
+|---|---|---|
+| RF-11 | Audit log registra 403 (rbac_denied) y 429 (rate_limit_exceeded) | `src/transport/dependencies.py` |
+| RF-12 | `/auth/refresh` registra token_refreshed / token_refresh_failed | `src/transport/auth_router.py` |
+| RF-13 | CI: ruff + pip-audit como gates bloqueantes | `.github/workflows/ci.yml`, `pyproject.toml` |
+| RF-14 | `.dockerignore` excluye secretos y archivos del marco | `.dockerignore` |
+| RF-15 | Test para actualización de `description` en PUT /resources | `tests/test_resources.py` |
+| RF-16 | SECURITY.md con política de divulgación responsable | `SECURITY.md` |
+| RF-17 | `.env.example` documentado con comentarios inline | `.env.example` |
+
+**Resultado final:** 60 tests passed (era 55), 93% coverage. Ruff: 0 errores. pip-audit: 0 vulnerabilidades.
+
+**Decisiones técnicas:**
+- `pyproject.toml` configura ruff con `ignore = ["E501"]` — docstrings y comentarios no penalizan por longitud.
+- F401 (unused imports) sí se enforcan — eliminado `import pytest` en varios test files y `from src.schemas.roles import Role` en `auth_service.py`.
+- El audit log de `check_rbac` y `check_rate` escribe ANTES de lanzar la `HTTPException` — es la única forma de capturar el evento ya que el middleware de respuesta no está implementado.
+- Para RF-12: el refresh token se decodifica con `options={"verify_exp": False}` en el bloque de fallo para poder registrar el `user_id` incluso cuando el token está expirado. Esto es solo para el audit log — la validación real ya falló antes.
+
+**Patrones operativos para futuras sesiones:**
+1. **Auditoría antes de implementación:** Un informe técnico exhaustivo (antes de escribir código) identifica gaps que los tests no cubrían y previene regresiones.
+2. **Agents en background comparten working tree:** Cuando 3+ agentes trabajan en paralelo en el mismo directorio sin `isolation: "worktree"`, usar `git stash` antes de cambiar de rama y pop al regresar.
+3. **Ruff F401 en CI:** Eliminar todos los `import pytest` en test files que no usan directamente fixtures de pytest (solo usan `client`, `admin_token`, etc. de conftest via DI). pytest no necesita ser importado explícitamente.
+4. **project_spec.md como registro de versiones:** Mantener secciones v1.0/v2.0 separadas en el DAG para que el historial de evolución del producto sea trazable desde la spec.
+
+**Archivos actualizados en agent-configs:** `project_spec.md` (v2.0), `README.md` (60 tests, RF-01 a RF-17), `engram/session_learning.md`

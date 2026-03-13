@@ -205,7 +205,7 @@ agent-configs/
 ├── agent.md                          ← Marco operativo completo PIV/OAC v3.2
 │
 ├── project_spec.md                   ← Fuente de verdad activa (RF + DAG)
-│                                        Actualmente: Mini Platform API v1.0
+│                                        Actualmente: Mini Platform API v2.0 (RF-01 a RF-17)
 │
 ├── security_vault.md                 ← Acceso restringido (Zero-Trust)
 │
@@ -283,14 +283,16 @@ La especificación activa (`project_spec.md`) ejecutó la construcción de la **
 
 | Métrica | Resultado |
 |---|---|
-| Tests | 55 passed, 0 failed |
+| Tests | 60 passed, 0 failed |
 | Cobertura | 93% (mínimo requerido: 80%) |
 | Secretos en código | 0 |
 | Gates ejecutados | 14 / 14 aprobados |
-| RF cumplidos | RF-01 a RF-10 — todos |
-| Archivos entregados | 60 archivos, 2.295 líneas |
+| RF cumplidos | RF-01 a RF-17 — todos |
+| Archivos entregados | 63 archivos |
+| Ruff (lint) | 0 errores |
+| pip-audit (SCA) | 0 vulnerabilidades |
 
-El proceso completo está trazado en `gates/` (28 archivos de revisión) y `logs_veracidad/` (3 logs de auditoría).
+El proceso completo está trazado en `gates/` (28 archivos de revisión) y `logs_veracidad/` (3 logs de auditoría + informe de auditoría técnica completa).
 
 ---
 
