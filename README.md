@@ -42,7 +42,7 @@ pip install -r requirements-test.txt
 pytest tests/ -v --cov=src --cov-report=term-missing
 ```
 
-Resultado esperado: **60 passed, 93% coverage.**
+Resultado esperado: **61 passed, 93.48% coverage.**
 
 ---
 
@@ -205,6 +205,10 @@ Usuarios de prueba disponibles directamente. La instancia puede tardar ~30 s en 
 - `X-Frame-Options: DENY` — previene clickjacking
 - `Referrer-Policy: strict-origin-when-cross-origin`
 - `X-XSS-Protection: 0` — desactiva el filtro legacy (CSP es el mecanismo correcto)
+- `Strict-Transport-Security: max-age=31536000; includeSubDomains` — HSTS, fuerza HTTPS por 1 año
+
+### Manejo de errores
+- **Global exception handler:** Cualquier excepción no capturada devuelve `{"detail": "Error interno del servidor."}` sin exponer stack traces ni detalles internos. El error se loguea server-side.
 
 ### Audit trail
 - Los intentos de login fallidos se registran en el audit log (`event: login_failed`) junto con IP y timestamp
@@ -256,7 +260,7 @@ Puede tardar ~30 s en responder si lleva tiempo inactiva (free tier de Render).
 |---|---|---|
 | Store in-memory | Recursos creados se pierden al reiniciar | SQLAlchemy + PostgreSQL |
 | Tokens revocados in-memory | Revocación se pierde al reiniciar (ventana máx: 1 h) | Redis para revocación también |
-| Audit log sin límite | Crecimiento ilimitado en sesiones largas | Límite + flush periódico a BD |
+| Audit log capped a 10K entries | Entradas antiguas se evictan (circular buffer) | Flush periódico a BD |
 | Credenciales de demo públicas | Cualquiera puede operar con los 3 usuarios | Registro de usuarios con contraseñas propias |
 
 ---
