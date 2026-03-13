@@ -144,6 +144,41 @@ El GATE 2 (feature/<tarea> → staging) es independiente y lo gestiona Security 
 
 ---
 
+## Protocolo de Escalado de Conflictos de Seguridad
+
+Cuando un conflicto entre expertos involucra un patrón de seguridad, el CoherenceAgent **no puede resolverlo unilateralmente**. La versión "más coherente" puede ser la versión insegura.
+
+**Criterios para identificar un conflicto de seguridad:**
+- Autenticación, JWT, BCrypt, ciclo de vida de tokens
+- Permisos, roles, RBAC, ownership de recursos
+- Manejo de secretos, variables de entorno, claves
+- Validación de input, sanitización, límites de campo
+- Logging de seguridad, audit trail
+- Rate limiting, protección contra fuerza bruta
+
+**Protocolo:**
+```
+1. CoherenceAgent detecta conflicto que afecta a seguridad
+2. SUSPENDER resolución — no proponer ni aplicar ninguna versión
+3. Emitir reporte de escalado al SecurityAgent:
+
+COHERENCE → SECURITY ESCALATION
+Tarea: feature/<tarea>
+Expertos en conflicto: <experto-1>, <experto-2>
+Archivo(s): <ruta>
+Naturaleza del conflicto: <descripción>
+Versión experto-1: <resumen>
+Versión experto-2: <resumen>
+RF de seguridad afectado: <RF-XX>
+Pregunta al SecurityAgent: ¿qué versión es correcta o se necesita una tercera?
+
+4. SecurityAgent determina la resolución correcta
+5. CoherenceAgent aplica la decisión del SecurityAgent
+6. Registrar escalado y resolución en el gate report
+```
+
+---
+
 ## Contribución al Engram
 
 Al cierre de cada tarea, el CoherenceAgent provee al AuditAgent un resumen para el engram:

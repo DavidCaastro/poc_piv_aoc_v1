@@ -158,11 +158,168 @@ pydantic[email]>=2.7.0              # Validación
 
 ---
 
+## Patrón 7 — RBAC (Role-Based Access Control)
+
+**Principio:** RBAC verifica autorización, no identidad. Siempre después de autenticación en el middleware chain.
+
+**Matriz de permisos centralizada (constante, no lógica distribuida):**
+```python
+PERMISSION_MATRIX: dict[str, dict[str, list[str]]] = {
+    "GET /resources":       ["VIEWER", "EDITOR", "ADMIN"],
+    "POST /resources":      ["EDITOR", "ADMIN"],
+    "PUT /resources/{id}":  ["EDITOR", "ADMIN"],
+    "DELETE /resources/{id}": ["ADMIN"],
+    "GET /admin/audit-log": ["ADMIN"],
+}
+```
+
+**Ownership validation obligatoria en escritura:**
+```python
+# RBAC verifica rol, pero NO ownership. Ownership es validación adicional obligatoria.
+if user.role != "ADMIN" and resource["owner_id"] != user.sub:
+    raise HTTPException(status_code=403, detail="Permisos insuficientes.")
+```
+
+**Orden correcto del middleware:** `auth → RBAC → rate_limit`
+SecurityAgent DEBE rechazar cualquier plan donde este orden no esté explícito.
+
+**Checklist RBAC:**
+- [ ] Matriz de permisos es una constante centralizada
+- [ ] Ownership validado en todas las operaciones de escritura (PUT, DELETE)
+- [ ] RBAC aplicado DESPUÉS de auth en el middleware chain
+- [ ] 403 para permisos insuficientes, 401 para no autenticado (nunca intercambiarlos)
+
+---
+
+## Patrón 8 — Rate Limiting Seguro
+
+**Dos niveles obligatorios:**
+
+| Nivel | Aplica a | Clave | Límite sugerido |
+|---|---|---|---|
+| Por IP | Endpoints públicos (/login, /refresh) | `client_ip` | 10 req / 15 min |
+| Por usuario | Endpoints autenticados | `user_id` | Por rol (VIEWER/EDITOR/ADMIN) |
+
+**Rate limiting por IP (endpoints públicos):**
+```python
+_login_windows: dict[str, list[float]] = {}
+LOGIN_LIMIT, LOGIN_WINDOW = 10, 900  # 10 intentos / 15 min
+
+def check_login_rate_limit(client_ip: str) -> bool:
+    now = time.time()
+    window = [t for t in _login_windows.get(client_ip, []) if now - t < LOGIN_WINDOW]
+    if len(window) >= LOGIN_LIMIT:
+        return False
+    window.append(now)
+    _login_windows[client_ip] = window
+    return True
+```
+
+**Purga periódica obligatoria** (aplicar en cada check o como tarea periódica):
+```python
+def purge_rate_windows(windows: dict, window_seconds: int) -> None:
+    now = time.time()
+    stale = [k for k, ts in windows.items() if not any(now - t < window_seconds for t in ts)]
+    for k in stale:
+        del windows[k]
+```
+
+**Checklist Rate Limiting:**
+- [ ] /auth/login y /auth/refresh tienen rate limiting por IP
+- [ ] Endpoints autenticados tienen rate limiting por usuario/rol
+- [ ] HTTP 429 con mensaje genérico (no revelar límites exactos)
+- [ ] Purga de ventanas expiradas implementada
+
+---
+
+## Patrón 9 — CORS Seguro
+
+```python
+from fastapi.middleware.cors import CORSMiddleware
+
+# NUNCA allow_origins=["*"] cuando allow_credentials=True
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=os.environ.get("CORS_ORIGINS", "http://localhost:3000").split(","),
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["Authorization", "Content-Type"],
+)
+```
+
+---
+
+## Patrón 10 — Security Headers
+
+```python
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["X-XSS-Protection"] = "0"  # CSP es preferible en browsers modernos
+    return response
+```
+
+---
+
+## Patrón 11 — Audit Logging Completo
+
+**Registrar TODOS los eventos de seguridad, incluidos fallos:**
+
+```python
+# Intentos fallidos de login (sin contraseña en los logs)
+store.audit_log.append({
+    "user_id": None,
+    "email_attempted": body.email,  # para detección de fuerza bruta, NO la contraseña
+    "endpoint": "/auth/login",
+    "method": "POST",
+    "timestamp": datetime.utcnow().isoformat(),
+    "status_code": 401,
+    "event": "login_failed"
+})
+```
+
+**Checklist Audit Logging:**
+- [ ] Intentos fallidos de login registrados (sin contraseña)
+- [ ] Accesos denegados (403) registrados
+- [ ] status_code real capturado (no asumido como 200)
+- [ ] Ningún dato sensible en los logs (passwords, tokens completos)
+
+---
+
+## Patrón 12 — In-Memory Store: Límites y Purga
+
+**Todo dict in-memory que crezca indefinidamente DEBE tener purga:**
+
+```python
+def purge_expired_tokens(revoked_tokens: dict) -> None:
+    """Llamar en cada check de revocación para evitar crecimiento ilimitado."""
+    now = time.time()
+    expired = [jti for jti, exp in revoked_tokens.items() if exp < now]
+    for jti in expired:
+        del revoked_tokens[jti]
+```
+
+**Limitaciones conocidas del POC in-memory (documentar siempre):**
+- Tokens revocados se pierden al reiniciar → en producción usar Redis
+- Race conditions sin locks → en producción usar base de datos con transacciones ACID
+- Audit log mutable → en producción enviar a sistema de logs externo inmutable
+
+---
+
 ## Checklist de Seguridad Pre-Deploy
 
 - [ ] Ninguna credencial hardcodeada en el código fuente
+- [ ] SECRET_KEY sin fallback — `os.environ["JWT_SECRET_KEY"]` lanza excepción si no está definida
 - [ ] SECRET_KEY obtenida exclusivamente desde MCP / variable de entorno
 - [ ] Logs no contienen passwords, tokens completos ni emails en texto plano
 - [ ] Cost factor BCrypt benchmarkeado (≥ 100ms en hardware objetivo)
-- [ ] Endpoint /login con rate limiting activo
-- [ ] JWT incluye campo `jti` para soporte de revocación
+- [ ] Endpoint /login Y /refresh con rate limiting por IP activo
+- [ ] JWT incluye campos `jti` e `iat`
+- [ ] RBAC con ownership validation en operaciones de escritura
+- [ ] Security headers configurados
+- [ ] CORS con orígenes explícitos (nunca `*` con credenciales)
+- [ ] Purga de tokens revocados expirados implementada
+- [ ] Intentos fallidos de autenticación registrados en audit log

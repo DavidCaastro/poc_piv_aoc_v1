@@ -55,3 +55,64 @@
 **Archivos actualizados:** agent.md (v3.1), CLAUDE.md, orchestrator.md, security_auditor.md, coherence_agent.md, agent_taxonomy.md, skills/orchestration.md
 
 **Resultado:** 29 oportunidades de mejora identificadas. Aplicadas las críticas e importantes. Marco elevado a v3.1.
+
+---
+
+## Sesión 2026-03-13 — Auditoría de Seguridad Completa (SecurityAgent)
+
+**Tarea:** Auditoría exhaustiva de seguridad sobre dos superficies: aplicación FastAPI (rama `main`) + marco operativo PIV/OAC (rama `agent-configs`).
+
+**Hallazgos totales:** 32 (1 crítica, 8 alta, 12 media, 8 baja, 1 inconsistencia marco-implementación)
+**Archivos analizados:** 23 (13 aplicación + 10 marco operativo)
+**Categorías OWASP:** A01, A02, A03, A04, A05, A07, A09 + Prompt Injection + Token Security
+
+### Fixes aplicados — Aplicación (rama main)
+
+| ID | Severidad | Fix |
+|---|---|---|
+| VULN-001 | CRÍTICA | JWT_SECRET_KEY sin fallback — `os.environ["JWT_SECRET_KEY"]` lanza RuntimeError si no está definida |
+| VULN-014 | BAJA | Añadido claim `iat` al JWT en `_create_token()` |
+| VULN-005 | ALTA | Añadida `purge_expired_tokens()` llamada en cada `is_token_revoked()` |
+| VULN-015 | MEDIA | Logout acepta `refresh_token` opcional y revoca ambos tokens |
+| VULN-016 | ALTA | PUT /resources/{id} valida `owner_id == current_user.sub` para EDITOR |
+| VULN-007 | ALTA | Rate limiting por IP en /auth/login (10 req/15min, sliding window) |
+| VULN-012 | MEDIA | Intentos fallidos de login registrados en audit_log con `event: login_failed` |
+| VULN-004 | MEDIA | Security headers middleware añadido en main.py |
+| VULN-018/020 | BAJA | `max_length` en campos de recursos y password |
+| VULN-023 | ALTA | `security_vault.md` añadido a `.gitignore` |
+
+### Fixes aplicados — Marco operativo (rama agent-configs)
+
+| ID | Severidad | Fix |
+|---|---|---|
+| VULN-028 | MEDIA | `skills/backend-security.md` ampliado con Patrones 7-12: RBAC, rate limiting, CORS, security headers, audit logging, in-memory purge |
+| VULN-029 | MEDIA | `registry/coherence_agent.md` — añadido protocolo de escalado de conflictos de seguridad al SecurityAgent |
+| VULN-027 | MEDIA | Checklist de seguridad actualizado para incluir `iat`, rate limiting por IP, ownership validation, CORS, security headers |
+
+### Vulnerabilidades conocidas no resueltas (limitaciones estructurales del POC)
+
+| ID | Razón de no resolución |
+|---|---|
+| VULN-021 | In-memory pierde estado al reiniciar — limitación inherente del POC, documentada |
+| VULN-009/010 | Race conditions sin locks — requiere base de datos en producción |
+| VULN-022 | Audit log mutable — en producción usar sistema de logs externo inmutable |
+| VULN-011 | status_code en audit log siempre 200 — requiere middleware de respuesta, comentario de limitación añadido |
+| VULN-024 | Zero-Trust sin enforcement técnico — requiere permisos de filesystem + vault externo |
+| VULN-025 | Agent-configs sin firma digital — requiere branch protection rules en GitHub (configuración manual del repositorio) |
+| VULN-003 | CORS no configurado — añadido patrón en skill; implementación requiere conocer dominios de producción |
+| VULN-006 | Purga de rate_windows huérfanas — parcialmente cubierta por purge_rate_windows en skill |
+| VULN-008 | Rate limiting en /auth/refresh — patrón añadido en skill; implementación pendiente |
+| VULN-013 | verify_token sin expected_type — diseño funciona, mejora defensiva pendiente |
+| VULN-019 | Sin paginación — fuera del scope del POC |
+| VULN-031 | Límite de escalados de modelo — mejora operativa menor pendiente |
+| VULN-032 | Prompt injection en templates de invocación — mejora estructural de los prompts pendiente |
+
+### Patrones críticos para futuras implementaciones
+
+1. **JWT_SECRET_KEY siempre sin fallback** — `os.environ["JWT_SECRET_KEY"]` en producción; conftest.py establece la variable antes de importar la app
+2. **Todo endpoint público necesita rate limiting por IP** — no solo rate limiting por usuario autenticado
+3. **RBAC verifica rol, ownership verifica pertenencia** — son validaciones independientes y ambas obligatorias
+4. **Audit log registra TODOS los eventos**, incluidos fallos, con status_code real
+5. **Todo dict in-memory con crecimiento ilimitado necesita purga periódica** — tokens revocados, rate windows
+6. **security_vault.md y URLs de infraestructura NUNCA en el repositorio**
+7. **CoherenceAgent escala al SecurityAgent cualquier conflicto que afecte a seguridad** — no resolver unilateralmente
