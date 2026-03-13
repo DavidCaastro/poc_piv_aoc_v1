@@ -27,6 +27,7 @@ class LoginRequest(BaseModel):
     password: str = Field(
         ...,
         min_length=1,
+        max_length=128,  # FIX VULN-020: BCrypt truncates at 72 bytes; cap input to avoid overhead
         description="User password",
     )
 

@@ -4,26 +4,51 @@ These endpoints handle authentication. Login is public (no auth required).
 Refresh and logout require a valid token.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import datetime, timezone
 
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from jose import JWTError
+
+from src.data import store
 from src.domain import auth_service
-from src.schemas.tokens import TokenPair, RefreshRequest
+from src.domain import rate_limiter
+from src.schemas.tokens import TokenPair, RefreshRequest, LogoutRequest, TokenPayload
 from src.schemas.users import LoginRequest
 from src.transport.dependencies import get_current_user
-from src.schemas.tokens import TokenPayload
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/login", response_model=TokenPair)
-async def login(body: LoginRequest):
+async def login(body: LoginRequest, request: Request):
     """POST /auth/login — Authenticate user and return token pair (RF-01).
 
     No auth required. Returns generic 401 on failure (RF-04, RF-09).
+    FIX VULN-006: Rate limited per client IP (10 attempts / 15 minutes).
+    FIX VULN-012: Failed login attempts are recorded in the audit log.
     """
+    # FIX VULN-006: IP-based rate limiting for login endpoint
+    client_ip = request.client.host if request.client else "unknown"
+    if not rate_limiter.check_login_rate_limit(client_ip):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Demasiados intentos. Intenta de nuevo más tarde.",
+        )
+
     result = auth_service.login(body.email, body.password)
 
     if result is None:
+        # FIX VULN-012: Record failed login attempt in audit log
+        store.audit_log.append({
+            "user_id": None,
+            "email_attempted": body.email,
+            "role": None,
+            "endpoint": "/auth/login",
+            "method": "POST",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "status_code": 401,
+            "event": "login_failed",
+        })
         # RF-04: Generic message — never distinguish email vs password
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -54,12 +79,24 @@ async def refresh(body: RefreshRequest):
 
 @router.post("/logout")
 async def logout(
+    body: LogoutRequest = None,
     current_user: TokenPayload = Depends(get_current_user),
 ):
-    """POST /auth/logout — Revoke the current token (RF-03).
+    """POST /auth/logout — Revoke the current access token (RF-03).
 
-    Adds the token's jti to the revoked tokens cache (O(1) dict).
+    FIX VULN-015: Also revokes the refresh token if provided in the request body.
+    Adds both tokens' jtis to the revoked tokens cache (O(1) dict).
     """
     auth_service.revoke_token(current_user.jti, current_user.exp)
+
+    # FIX VULN-015: Revoke refresh token if provided
+    if body and body.refresh_token:
+        try:
+            refresh_payload = auth_service.verify_token(body.refresh_token)
+            if refresh_payload.type == "refresh":
+                auth_service.revoke_token(refresh_payload.jti, refresh_payload.exp)
+        except JWTError:
+            # Invalid refresh token — access token already revoked, proceed
+            pass
 
     return {"detail": "Token revocado exitosamente."}

@@ -6,7 +6,9 @@ This module is the single source of truth for mutable state.
 DESIGN DECISIONS:
 - revoked_tokens: dict[str, float] indexed by jti for O(1) lookup (RF-03).
   A list would require O(n) search which is unacceptable.
-- rate_windows: dict[str, list[float]] for sliding window rate limiting (RF-07).
+- rate_windows: dict[str, list[float]] for sliding window rate limiting per user (RF-07).
+- login_windows: dict[str, list[float]] for IP-based login rate limiting (FIX VULN-007).
+  Kept in store (not module global in rate_limiter) so reset_store() clears it in tests.
 - audit_log: list[dict] for immutable append-only audit trail (RF-08).
 - users: dict[str, UserInDB] indexed by email for O(1) lookup.
 - resources: list[dict] for simple in-memory CRUD (RF-06).
@@ -41,6 +43,10 @@ revoked_tokens: dict[str, float] = {}
 # Used for sliding window rate limiting per user
 rate_windows: dict[str, list[float]] = {}
 
+# Login rate limiting windows: client_ip -> list of attempt timestamps
+# Used for IP-based sliding window login rate limiting (FIX VULN-007)
+login_windows: dict[str, list[float]] = {}
+
 # Audit trail: append-only log of authenticated requests (RF-08)
 # Each entry: {"user_id": str, "role": str, "endpoint": str,
 #              "method": str, "timestamp": str, "status_code": int}
@@ -62,6 +68,7 @@ def reset_store() -> None:
     resources.clear()
     revoked_tokens.clear()
     rate_windows.clear()
+    login_windows.clear()
     audit_log.clear()
     _next_resource_id = 1
 

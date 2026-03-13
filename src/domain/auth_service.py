@@ -12,6 +12,7 @@ Security patterns applied:
 """
 
 import os
+import time
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -24,8 +25,13 @@ from src.schemas.tokens import TokenPayload, TokenPair
 from src.schemas.users import UserInDB
 
 
-# JWT configuration
-_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "test-secret-key-for-testing-only")
+# JWT configuration — FIX VULN-001: no fallback secret
+_SECRET_KEY = os.environ.get("JWT_SECRET_KEY")
+if not _SECRET_KEY:
+    raise RuntimeError(
+        "JWT_SECRET_KEY environment variable is not set. "
+        "Set it before starting the application."
+    )
 _ALGORITHM = "HS256"
 _ACCESS_TOKEN_EXPIRE_MINUTES = 60      # 1 hour (RF-01)
 _REFRESH_TOKEN_EXPIRE_MINUTES = 1440   # 24 hours (RF-01)
@@ -33,11 +39,6 @@ _REFRESH_TOKEN_EXPIRE_MINUTES = 1440   # 24 hours (RF-01)
 # Dummy hash for timing-safe comparison when user doesn't exist (RF-04).
 # Generated with BCrypt cost 12 so the timing matches real verification.
 _DUMMY_HASH = bcrypt.hashpw(b"dummy-password-for-timing-safety", bcrypt.gensalt(rounds=12)).decode("utf-8")
-
-
-def _get_secret_key() -> str:
-    """Get JWT secret key from environment. Re-read each time for test flexibility."""
-    return os.environ.get("JWT_SECRET_KEY", "test-secret-key-for-testing-only")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -110,9 +111,10 @@ def _create_token(user: UserInDB, token_type: str, expires_delta: timedelta) -> 
         "role": user.role.value,
         "jti": str(uuid.uuid4()),
         "type": token_type,
+        "iat": now,         # FIX VULN-014: issued-at claim
         "exp": now + expires_delta,
     }
-    return jwt.encode(payload, _get_secret_key(), algorithm=_ALGORITHM)
+    return jwt.encode(payload, _SECRET_KEY, algorithm=_ALGORITHM)
 
 
 def verify_token(token: str) -> TokenPayload:
@@ -122,7 +124,7 @@ def verify_token(token: str) -> TokenPayload:
         JWTError: If the token is invalid, expired, or has been revoked.
     """
     try:
-        payload = jwt.decode(token, _get_secret_key(), algorithms=[_ALGORITHM])
+        payload = jwt.decode(token, _SECRET_KEY, algorithms=[_ALGORITHM])
     except JWTError:
         raise
 
@@ -148,11 +150,25 @@ def revoke_token(jti: str, exp: float) -> None:
     store.revoked_tokens[jti] = exp
 
 
+def purge_expired_tokens() -> None:
+    """Remove expired entries from the revoked tokens cache (FIX VULN-005).
+
+    Prevents unbounded memory growth by cleaning up tokens whose expiry
+    has already passed — they cannot be replayed regardless.
+    """
+    now = time.time()
+    expired_jtis = [jti for jti, exp in store.revoked_tokens.items() if exp < now]
+    for jti in expired_jtis:
+        del store.revoked_tokens[jti]
+
+
 def is_token_revoked(jti: str) -> bool:
     """Check if a token has been revoked (RF-03).
 
     O(1) lookup in dict indexed by jti.
+    Purges expired entries before checking to keep memory bounded.
     """
+    purge_expired_tokens()
     return jti in store.revoked_tokens
 
 

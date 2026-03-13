@@ -44,9 +44,19 @@ async def update_resource(
     body: ResourceUpdate,
     current_user: TokenPayload = Depends(require_auth),
 ):
-    """PUT /resources/{id} — Update a resource (EDITOR, ADMIN)."""
+    """PUT /resources/{id} — Update a resource (EDITOR, ADMIN).
+
+    FIX VULN-016: EDITOR can only update their own resources.
+    ADMIN can update any resource. RBAC checks role; ownership checks authorship.
+    """
     for resource in store.resources:
         if resource["id"] == resource_id:
+            # Ownership validation: EDITOR can only edit their own resources
+            if current_user.role != "ADMIN" and resource.get("owner_id") != current_user.sub:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Permisos insuficientes.",
+                )
             if body.title is not None:
                 resource["title"] = body.title
             if body.description is not None:

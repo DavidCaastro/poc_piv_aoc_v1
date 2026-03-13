@@ -88,13 +88,16 @@ async def check_rate(
         )
 
     # Log to audit trail (RF-08)
+    # KNOWN LIMITATION: status_code is recorded as 200 at dependency resolution time.
+    # Errors raised downstream (404, 500) are not captured here.
+    # For complete audit logging, implement a response middleware.
     store.audit_log.append({
         "user_id": current_user.sub,
         "role": current_user.role,
         "endpoint": request.url.path,
         "method": request.method,
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "status_code": 200,  # Will be updated if error occurs downstream
+        "status_code": 200,
     })
 
     return current_user

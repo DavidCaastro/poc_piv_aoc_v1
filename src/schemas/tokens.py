@@ -11,6 +11,8 @@ JWT claims schema (agreed for coherence between T-02 and T-03):
 }
 """
 
+from typing import Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -37,3 +39,15 @@ class RefreshRequest(BaseModel):
     """Request body for POST /auth/refresh (RF-02)."""
 
     refresh_token: str = Field(..., description="Valid, non-revoked refresh token")
+
+
+class LogoutRequest(BaseModel):
+    """Optional request body for POST /auth/logout (FIX VULN-015).
+
+    Allows revoking the refresh token alongside the access token on logout.
+    """
+
+    refresh_token: Optional[str] = Field(
+        default=None,
+        description="Optional refresh token to revoke on logout",
+    )

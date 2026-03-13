@@ -15,8 +15,9 @@ class Resource(BaseModel):
 class ResourceCreate(BaseModel):
     """Request body for POST /resources."""
 
-    title: str = Field(..., min_length=1, description="Resource title")
-    description: str = Field(default="", description="Resource description")
+    # FIX VULN-018: max_length to prevent unbounded memory growth via large payloads
+    title: str = Field(..., min_length=1, max_length=200, description="Resource title")
+    description: str = Field(default="", max_length=5000, description="Resource description")
 
     model_config = {"extra": "forbid"}
 
@@ -24,7 +25,7 @@ class ResourceCreate(BaseModel):
 class ResourceUpdate(BaseModel):
     """Request body for PUT /resources/{id}."""
 
-    title: str | None = Field(default=None, min_length=1, description="New title")
-    description: str | None = Field(default=None, description="New description")
+    title: str | None = Field(default=None, min_length=1, max_length=200, description="New title")
+    description: str | None = Field(default=None, max_length=5000, description="New description")
 
     model_config = {"extra": "forbid"}
