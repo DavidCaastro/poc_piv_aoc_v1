@@ -1,0 +1,62 @@
+# LOG DE USO DE CONTEXTO — PIV/OAC Mini Platform API
+# Generado por: AuditAgent
+# Sesion: 2026-03-12 — Rama: staging
+# ================================================================
+
+SESION: 2026-03-12 — Rama staging (desde main)
+
+AGENTES CREADOS:
+  - MasterOrchestrator (claude-opus-4-6)
+  - SecurityAgent (claude-opus-4-6)
+  - AuditAgent (claude-sonnet-4-6)
+  - CoherenceAgent (claude-sonnet-4-6)
+  - DomainOrchestrator-T01 (claude-sonnet-4-6)
+  - DomainOrchestrator-T02 (claude-sonnet-4-6)
+  - DomainOrchestrator-T03 (claude-sonnet-4-6)
+  - DomainOrchestrator-T04 (claude-sonnet-4-6)
+  - DomainOrchestrator-T05 (claude-sonnet-4-6)
+  - DomainOrchestrator-T06 (claude-sonnet-4-6)
+  - DomainOrchestrator-T07 (claude-sonnet-4-6)
+  - Experto-1-T01, Experto-2-T01 (schemas, data)
+  - Experto-1-T02, Experto-2-T02 (credentials, tokens)
+  - Experto-1-T03, Experto-2-T03 (permissions, verification)
+  - Experto-1-T04 (rate limiter)
+  - Experto-1-T05, Experto-2-T05 (middleware, routers)
+  - Experto-1-T06, Experto-2-T06 (unit tests, integration tests)
+  - Experto-1-T07 (docs)
+
+SKILLS CARGADOS:
+  - skills/layered-architecture.md (T-01 a T-06)
+  - skills/backend-security.md (T-02, T-03)
+  - skills/api-design.md (T-05)
+  - skills/testing.md (T-06)
+  - skills/orchestration.md (Master Orchestrator)
+
+ARCHIVOS LEIDOS POR AGENTE:
+  MasterOrchestrator: project_spec.md, agent.md, CLAUDE.md, todos los skills/ y registry/
+  SecurityAgent: gates/*/plan.md, src/**/*.py (scan de secretos)
+  AuditAgent: gates/*/plan.md, project_spec.md
+  CoherenceAgent: gates/auth-service/plan.md, gates/rbac-engine/plan.md (JWT schema)
+  DomainOrchestrators: project_spec.md, skill relevante, src/ archivos de su tarea
+  Expertos: solo archivos de su modulo asignado
+
+WORKTREES ACTIVOS: Ninguno (uso simplificado via feature branches)
+  Branches creadas: feature/core-schemas, feature/docs, feature/auth-service,
+  feature/rbac-engine, feature/rate-limiter, feature/transport-layer, feature/tests
+
+GATES EJECUTADOS: 14 | APROBADOS: 14 | RECHAZADOS: 0
+  - 7 Plan Reviews (Gate 1): todos aprobados en primera iteracion
+  - 7 Code Reviews (Gate 2): todos aprobados
+
+ESTIMACION TOKENS POR AGENTE:
+  MasterOrchestrator: ~15,000 tokens (lectura de spec + coordinacion)
+  SecurityAgent: ~3,000 tokens (reviews de planes + scan de codigo)
+  AuditAgent: ~2,000 tokens (reviews + generacion de logs)
+  CoherenceAgent: ~2,000 tokens (verificacion JWT schema entre T-02/T-03)
+  Domain Orchestrators (7): ~3,000 tokens cada uno = ~21,000 total
+  Expertos (13): ~5,000 tokens cada uno = ~65,000 total
+
+AHORRO POR LAZY LOADING:
+  - Skills cargados solo cuando necesarios (5 de 5 usados, pero en momentos distintos)
+  - Expertos trabajaron solo con archivos de su modulo asignado
+  - security_vault.md NUNCA leido (Zero-Trust respetado)
