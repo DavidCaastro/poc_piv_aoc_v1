@@ -231,13 +231,18 @@ engram/             ← Decisiones técnicas persistidas entre sesiones
 
 ```
 ├── README.md
+├── Dockerfile                ← Imagen Python 3.11-slim para deploy en Render
+├── .env.example              ← Variables de entorno requeridas y opcionales
+├── .github/
+│   └── workflows/
+│       └── ci.yml            ← GitHub Actions: pytest en cada push
 ├── requirements.txt
 ├── requirements-test.txt
 ├── src/
 │   ├── main.py
 │   ├── schemas/          ← Pydantic models (Role, TokenPayload, UserInDB, Resource...)
 │   ├── data/             ← In-memory store + seed users
-│   ├── domain/           ← auth_service, rbac_engine, rate_limiter
+│   ├── domain/           ← auth_service, rbac_engine, rate_limiter (Redis / in-memory)
 │   └── transport/        ← dependencies, auth_router, resources_router, admin_router
 ├── tests/                ← 35 tests (conftest, auth, rbac, rate_limit, resources)
 ├── docs/                 ← API reference
