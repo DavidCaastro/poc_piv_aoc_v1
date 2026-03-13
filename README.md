@@ -204,6 +204,53 @@ Usuarios de prueba disponibles directamente. La instancia puede tardar ~30 s en 
 
 ---
 
+## Verificación en producción
+
+La API está desplegada en `https://poc-piv-aoc-v1.onrender.com/docs` con Swagger UI interactivo.
+Puede tardar ~30 s en responder si lleva tiempo inactiva (free tier de Render).
+
+### Flujo de prueba
+
+1. **Login** — `POST /auth/login` con cualquiera de los usuarios de prueba
+2. **Autorizar** — click en "Authorize" (candado) en Swagger, pegar el `access_token`
+3. **Explorar** — todos los endpoints están disponibles según el rol del token
+
+### Escenarios recomendados para verificar el comportamiento
+
+| Acción | Usuario | Resultado esperado |
+|---|---|---|
+| GET /resources | cualquiera | 200 — lista de recursos seed |
+| POST /resources | editor / admin | 201 — recurso creado |
+| PUT /resources/1 con recurso ajeno | editor | 403 — ownership validation |
+| DELETE /resources/1 | viewer / editor | 403 — RBAC |
+| DELETE /resources/1 | admin | 200 — eliminado |
+| GET /admin/audit-log | admin | 200 — log completo |
+| GET /admin/audit-log | viewer / editor | 403 |
+| 11 POST /auth/login fallidos seguidos | cualquier IP | 429 — rate limit |
+| POST /auth/logout + reuso del token | cualquiera | 401 — token revocado |
+
+### Vectores de ataque probados (todos bloqueados)
+
+| Vector | Mecanismo de bloqueo |
+|---|---|
+| XSS en campos de texto | La API devuelve JSON — los scripts no se ejecutan |
+| SQL injection | No hay SQL — búsquedas por dict lookup |
+| Campos extra en el body | `extra = "forbid"` → 422 inmediato |
+| Payloads masivos | `title` ≤ 200, `description` ≤ 5 000, `password` ≤ 128 chars |
+| Tokens manipulados | Firma HS256 verificada — cualquier modificación → 401 |
+| Fuerza bruta en login | 10 intentos / 15 min por IP (Upstash Redis) |
+
+### Limitaciones conocidas del POC (by design)
+
+| Limitación | Impacto en demo | Solución en producción real |
+|---|---|---|
+| Store in-memory | Recursos creados se pierden al reiniciar | SQLAlchemy + PostgreSQL |
+| Tokens revocados in-memory | Revocación se pierde al reiniciar (ventana máx: 1 h) | Redis para revocación también |
+| Audit log sin límite | Crecimiento ilimitado en sesiones largas | Límite + flush periódico a BD |
+| Credenciales de demo públicas | Cualquiera puede operar con los 3 usuarios | Registro de usuarios con contraseñas propias |
+
+---
+
 ## Cómo se construyó: el marco PIV/OAC
 
 El desarrollo siguió un protocolo de orquestación multi-agente definido en la rama `agent-configs`:
