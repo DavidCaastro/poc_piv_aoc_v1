@@ -283,8 +283,8 @@ La especificación activa (`project_spec.md`) ejecutó la construcción de la **
 
 | Métrica | Resultado |
 |---|---|
-| Tests | 35 passed, 0 failed |
-| Cobertura | 96% (mínimo requerido: 80%) |
+| Tests | 55 passed, 0 failed |
+| Cobertura | 93% (mínimo requerido: 80%) |
 | Secretos en código | 0 |
 | Gates ejecutados | 14 / 14 aprobados |
 | RF cumplidos | RF-01 a RF-10 — todos |

@@ -138,3 +138,58 @@
 
 **Regla operativa para futuras sesiones:**
 El SecurityAgent DEBE incluir `requirements.txt` y `requirements-test.txt` en el scope de TODA auditoría de seguridad, ejecutar `pip audit` como primer paso, y evaluar cada dependencia de terceros contra CVEs conocidos y actividad de mantenimiento.
+
+---
+
+## Sesión 2026-03-13 — Análisis de coherencia de tests y cobertura de gaps
+
+**Tarea:** Identificar gaps entre implementación y tests, escribirlos, y corregir un false positive.
+
+**Gaps encontrados (10) y resueltos:**
+
+| Gap | Severidad | Test añadido |
+|---|---|---|
+| Login rate limit por IP | Mayor | `TestLogin::test_login_rate_limit_per_ip` |
+| Failed login en audit log | Mayor | `TestLogin::test_failed_login_recorded_in_audit_log` |
+| Ownership cross-user | Mayor | `TestResourceCRUD::test_editor_cannot_update_other_users_resource` |
+| Validación de límites de input | Mayor | `TestInputValidation` (7 tests en `test_security.py`) |
+| False positive audit trail | Mayor (fix) | `test_audit_log_contains_required_fields` — ahora filtra entries autenticadas y verifica valores non-null |
+| Refresh token revocado en logout | Moderado | `TestLogout::test_logout_also_revokes_refresh_token` |
+| Purga de tokens revocados expirados | Moderado | `TestTokenExpiry::test_purge_removes_expired_revoked_tokens` |
+| Security headers | Moderado | `TestSecurityHeaders` (3 tests en `test_security.py`) |
+| Admin rate limit exacto a 100 | Menor | `TestRateLimiting::test_admin_rate_limit_exceeded_at_100` |
+| Token expirado | Menor | `TestTokenExpiry::test_expired_token_returns_401` |
+
+**Bug de producción descubierto por los tests:**
+`max_length=128` en `LoginRequest.password` causaba `ValueError: password cannot be longer than 72 bytes` en `bcrypt>=4.1.0` para contraseñas de 73-128 chars, resultando en un HTTP 500.
+**Fix:** `max_length=128 → 72` en `src/schemas/users.py`. Regla: bcrypt>=4.1 lanza ValueError para inputs >72 bytes — el límite en el schema debe ser ≤ 72.
+
+**Resultado final:** 35 → 55 tests passed, 93% coverage.
+
+### Patrones de testing a aplicar en futuras implementaciones
+
+1. **Verificar no solo presencia de campos sino sus valores** — un audit log entry con `user_id=None` pasa un test que solo verifique `field in entry`. Siempre verificar que los valores son significativos para el contexto del test.
+
+2. **Cada fix de seguridad necesita su test negativo** — para cada vuln fix hay que añadir el test que demuestra el vector de ataque bloqueado:
+   - VULN-006 (rate limit IP) → test que envía 11 requests y verifica 429
+   - VULN-012 (failed login audit) → test que verifica entry con event=login_failed
+   - VULN-015 (logout revoca refresh) → test que verifica refresh token inválido post-logout
+   - VULN-016 (ownership) → test que verifica EDITOR no puede editar recurso ajeno
+   - VULN-018/020 (input limits) → tests de boundary exacto (max, max+1, 0)
+
+3. **Tests de boundary deben verificar ambos lados del límite:**
+   - `len(field) = max_length` → debe aceptarse (201 o 422 indica bug)
+   - `len(field) = max_length + 1` → debe rechazarse con 422
+   - `len(field) = 0` si min_length=1 → debe rechazarse con 422
+
+4. **Rate limit tests deben alcanzar el límite real**, no solo verificar que otro rol tiene límite más alto:
+   - Incorrecto: "ADMIN hace 31 requests y todos pasan" (no verifica el límite real de 100)
+   - Correcto: "ADMIN hace 100 requests (ok) + 1 más (429)"
+
+5. **Tokens expirados deben crear manualmente** con `jwt.encode(..., exp=time.time()-3600)` — no depender del mock de tiempo ni de esperar que expire naturalmente.
+
+6. **False positives de formato:** Si el schema del audit log puede tener variantes (entries de login fallido con `user_id=None` vs. entries autenticadas con `user_id` real), el test debe filtrar explícitamente el tipo de entry que quiere verificar.
+
+7. **bcrypt>=4.1 no silencia passwords >72 bytes** — lanza `ValueError` causando HTTP 500. `max_length` en el schema debe ser ≤ 72.
+
+8. **`new_test_file` vs. `existing_test_file`:** Crear `test_security.py` separado para tests de headers y validación de inputs. No sobre-cargar `test_auth.py` con concerns de transporte.
