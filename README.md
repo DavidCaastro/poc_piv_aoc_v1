@@ -124,7 +124,7 @@ El middleware chain sigue el orden de seguridad correcto verificado por Security
 |---|---|
 | Framework | FastAPI |
 | Lenguaje | Python 3.10 |
-| Autenticación | JWT (python-jose) + BCrypt (cost 12) |
+| Autenticación | JWT (PyJWT >= 2.8.0) + BCrypt (cost 12) |
 | Almacenamiento | In-memory (dict / list) |
 | Tests | pytest + httpx + pytest-cov |
 

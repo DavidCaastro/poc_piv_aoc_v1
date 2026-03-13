@@ -6,8 +6,9 @@ Refresh and logout require a valid token.
 
 from datetime import datetime, timezone
 
+import jwt
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from jose import JWTError
 
 from src.data import store
 from src.domain import auth_service
@@ -95,7 +96,7 @@ async def logout(
             refresh_payload = auth_service.verify_token(body.refresh_token)
             if refresh_payload.type == "refresh":
                 auth_service.revoke_token(refresh_payload.jti, refresh_payload.exp)
-        except JWTError:
+        except jwt.PyJWTError:
             # Invalid refresh token — access token already revoked, proceed
             pass
 
