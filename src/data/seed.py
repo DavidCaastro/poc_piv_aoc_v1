@@ -3,11 +3,16 @@
 Users defined here are loaded into the in-memory store at startup.
 Passwords are hashed with BCrypt cost factor 12 as required by RF-04.
 
-Predefined users (from project_spec.md):
-  admin@test.com  / Admin123!  -> ADMIN
-  editor@test.com / Editor123! -> EDITOR
-  viewer@test.com / Viewer123! -> VIEWER
+Default demo users (override via environment variables for non-demo deployments):
+  SEED_ADMIN_PASSWORD  (default: Admin123!)  -> admin@test.com  / ADMIN
+  SEED_EDITOR_PASSWORD (default: Editor123!) -> editor@test.com / EDITOR
+  SEED_VIEWER_PASSWORD (default: Viewer123!) -> viewer@test.com / VIEWER
+
+WARNING: The default passwords are PUBLIC demo credentials.
+         Always set custom passwords via env vars in any shared or production deployment.
 """
+
+import os
 
 import bcrypt
 
@@ -25,6 +30,11 @@ def _hash_password(plain_password: str) -> str:
 # These are generated once at first import.
 _SEED_USERS: list[dict] | None = None
 
+# Read passwords from env vars with public demo defaults.
+_ADMIN_PW = os.environ.get("SEED_ADMIN_PASSWORD", "Admin123!")
+_EDITOR_PW = os.environ.get("SEED_EDITOR_PASSWORD", "Editor123!")
+_VIEWER_PW = os.environ.get("SEED_VIEWER_PASSWORD", "Viewer123!")
+
 
 def _build_seed_users() -> list[UserInDB]:
     """Build seed users with hashed passwords."""
@@ -32,19 +42,19 @@ def _build_seed_users() -> list[UserInDB]:
         UserInDB(
             id="user_admin_001",
             email="admin@test.com",
-            hashed_password=_hash_password("Admin123!"),
+            hashed_password=_hash_password(_ADMIN_PW),
             role=Role.ADMIN,
         ),
         UserInDB(
             id="user_editor_001",
             email="editor@test.com",
-            hashed_password=_hash_password("Editor123!"),
+            hashed_password=_hash_password(_EDITOR_PW),
             role=Role.EDITOR,
         ),
         UserInDB(
             id="user_viewer_001",
             email="viewer@test.com",
-            hashed_password=_hash_password("Viewer123!"),
+            hashed_password=_hash_password(_VIEWER_PW),
             role=Role.VIEWER,
         ),
     ]

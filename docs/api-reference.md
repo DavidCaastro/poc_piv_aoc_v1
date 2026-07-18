@@ -231,7 +231,10 @@ All error messages are generic and never reveal sensitive information.
 
 ## Test Users
 
-| Email | Password | Role |
+> **These are PUBLIC demo credentials.** For shared or production deployments,
+> set custom passwords via SEED_ADMIN_PASSWORD, SEED_EDITOR_PASSWORD, SEED_VIEWER_PASSWORD env vars.
+
+| Email | Password (demo) | Role |
 |-------|----------|------|
 | admin@test.com | Admin123! | ADMIN |
 | editor@test.com | Editor123! | EDITOR |

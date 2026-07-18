@@ -48,7 +48,11 @@ Resultado esperado: **61 passed, 93.48% coverage.**
 
 ## Usuarios de prueba
 
-| Email | Password | Rol |
+> **Estas son credenciales de demo publicas.** Para despliegues compartidos o en produccion,
+> configura contrasenas propias mediante las variables de entorno
+> SEED_ADMIN_PASSWORD, SEED_EDITOR_PASSWORD y SEED_VIEWER_PASSWORD.
+
+| Email | Password (demo) | Rol |
 |---|---|---|
 | `admin@test.com` | `Admin123!` | ADMIN |
 | `editor@test.com` | `Editor123!` | EDITOR |
